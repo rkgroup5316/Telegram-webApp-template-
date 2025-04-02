@@ -1,52 +1,57 @@
-# Telegram Web Apps for Bots / Mini App Example
+# Basic Telegram Mini App Template
 
-Example HTML-file that contains a plain-JS interaction with Telegram Web Apps API. 
-See live demo (with jQuery): [Attach Bot](https://t.me/asmico_attach_bot).
+A simple, minimal template for creating a Telegram Mini App (Web App), suitable for static hosting like GitHub Pages.
 
-## Links
-* Official docs: https://core.telegram.org/bots/webapps
-* Live Demo Bot: [Attach Bot](https://t.me/asmico_attach_bot)
-* Telegram Promo Bot: [Durger King](https://t.me/durgerkingbot)
+## Features
 
-## Quick setup
+* **HTML Structure:** Basic `index.html`.
+* **CSS Styling:** Uses Telegram's theme variables (`--tg-theme-...`) for adaptive styling (`style.css`).
+* **JavaScript Integration:**
+    * Initializes the Telegram Web App (`script.js`).
+    * Displays basic (unsafe) user information.
+    * Shows and handles the Main Button (sends data back to the bot).
+    * Shows and handles the Back Button (closes the app).
+    * Displays and updates based on Telegram theme parameters.
+    * Listens for theme and viewport changes.
+    * Enables closing confirmation.
+* **Static Hosting Ready:** No backend code included in the app itself.
 
-#### 0. Optional: Host the Web App in GitHub Pages
+## Files
 
-The Web App must be hosted somewhere. Hosting it on a GitHub repository is a quick, free way to do it:
+* `index.html`: The main HTML file.
+* `style.css`: CSS styles using Telegram theme variables.
+* `script.js`: Core JavaScript logic interacting with `telegram-web-app.js`.
+* `README.md`: This file.
 
-1. Create a repository (or fork this one)
-2. On the repository: Settings –> Pages:
-    - Source: Deploy from a branch
-    - Branch: master, / (root), Save
-3. Wait a few minutes for the web to be deployed. It will be available at: `https://{github-username}.github.io/{repository-name}/{location-inside-repository}`. In this case: `https://revenkroz.github.io/telegram-web-app-bot-example/index.html`
+## How to Use
 
-#### 1. Show the user a button to open a Web App. There are two ways:
+1.  **Get the Code:** Clone this repository or download the files.
+2.  **Host the Files:** Upload `index.html`, `style.css`, and `script.js` to a web server that supports **HTTPS**. GitHub Pages is a great free option.
+    * **GitHub Pages Setup:**
+        * Create a new GitHub repository.
+        * Push these files to the `main` branch.
+        * Go to your repository's `Settings` -> `Pages`.
+        * Under `Build and deployment`, select `Deploy from a branch`.
+        * Choose the `main` branch and the `/ (root)` folder. Click `Save`.
+        * Wait a few minutes. GitHub will provide you with a URL like `https://<your-username>.github.io/<repository-name>/`. **This URL must be HTTPS.**
+3.  **Configure Your Telegram Bot:**
+    * Talk to `@BotFather` on Telegram.
+    * If you don't have a bot, create one using `/newbot`.
+    * Use the `/setmenubutton` command with BotFather.
+    * Select your bot.
+    * Enter the **HTTPS URL** of your hosted `index.html` (from step 2).
+    * Give the menu button a name (e.g., "Open App").
+    * Alternatively, you can launch the Mini App from an inline keyboard button in your bot's messages.
+4.  **Launch the App:** Open a chat with your bot in Telegram and click the menu button you just configured (or the inline button if you set one up).
 
-1. Show the user a special menu button (near the message input field):
-   1. Go to [Bot Father](https://t.me/BotFather)
-   2. Select your bot
-   3. To set button in Bio: `Bot Settings` — `Configure Mini App`
-   4. Send a URL to your Web App (in this case, `https://revenkroz.github.io/telegram-web-app-bot-example/index.html`)
-   5. To set corner button in Bot: `Bot Settings` — `Menu Button` — `Specify..`/`Edit menu button URL`
-   6. Send a URL to your Web App (in this case, `https://revenkroz.github.io/telegram-web-app-bot-example/index.html`)
+## Important Notes
 
-2. The second way is to send a button with the data that contains field `web_app` with a URL to a Web App:
-    ```json
-    {
-        "text": "Test web_app",
-        "web_app": {
-            "url": "https://revenkroz.github.io/telegram-web-app-bot-example/index.html"
-        }
-    }
-    ```
+* **HTTPS is Required:** Telegram Mini Apps **must** be served over HTTPS. GitHub Pages provides this automatically.
+* **`initDataUnsafe` vs `initData`:** This template uses `tg.initDataUnsafe` to easily display user info directly in the Mini App. **This data is not secure**. For any action that requires verification (like purchases, logins, saving user-specific data), you **must** send the `tg.initData` string (not `initDataUnsafe`) to your **backend server**. Your backend must then validate this data using your bot token according to Telegram's documentation to ensure it hasn't been tampered with. This template does **not** include backend validation.
+* **`sendData(data)`:** The `tg.sendData()` function sends a string back to your bot as an `Update` containing a `web_app_data` field. Your bot's backend code needs to be listening for these updates to process the data.
+* **Bot Backend:** This template is only the *frontend* Mini App. You still need a separate backend service for your Telegram bot (written in Python, Node.js, Go, etc.) to handle commands, receive data from the Mini App via `sendData`, and perform actions.
 
-#### 2. Add script to your Web App
+## Further Reading
 
-To connect a Web App to the Telegram client, place the script `telegram-web-app.js` in the `<head>` tag before any other scripts, using this code ([more info](https://core.telegram.org/bots/webapps#initializing-web-apps)):
-```html
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-```
-
-Once the script is connected, a `window.Telegram.WebApp` object will become available.
-
-#### 3. Do the thing!
+* [Official Telegram Mini Apps Documentation](https://core.telegram.org/bots/webapps)
+* [Telegram Web App JS Script Reference](https://core.telegram.org/bots/webapps#initializing-mini-apps)
