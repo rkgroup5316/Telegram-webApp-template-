@@ -3,46 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Rkgroup Info</title>
+    <title>Rkgroup Hub</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-    <div class="container">
+    <div class="app-container">
         <header class="app-header">
-            <h1>Rkgroup Hub</h1>
-            <p>Information and Status</p>
+            <h1 id="page-title">Rkgroup Hub</h1>
         </header>
 
-        <section id="about" class="info-card">
-            <h2>About Rkgroup</h2>
-            <p>
-                Welcome! Rkgroup focuses on creating helpful Telegram bots and communities.
-                Explore our channels and check the status of our bots below.
-            </p>
-        </section>
+        <main class="app-content">
+            <section id="page-about" class="page-content active-page">
+                <div class="info-card">
+                    <h2><i class="fas fa-info-circle icon"></i> About Rkgroup</h2>
+                    <p>
+                        Welcome! Rkgroup focuses on creating helpful Telegram bots and communities.
+                        Explore our channels and check the status of our bots.
+                    </p>
+                </div>
+                <div class="info-card">
+                    <h2><i class="fas fa-book-open icon"></i> How it Works</h2>
+                    <p>
+                        Use the tabs below to navigate between sections. The bot status is checked
+                        periodically using a simple HTTPS request.
+                    </p>
+                     <p class="disclaimer">
+                        Bot status is checked via HTTPS ping. Requires the bot server to allow requests (CORS).<br>
+                        <span class="status-indicator status-online"></span> Online
+                        <span class="status-indicator status-offline"></span> Offline/Error
+                        <span class="status-indicator status-pending"></span> Checking
+                    </p>
+                </div>
+            </section>
 
-        <section id="channels" class="info-card">
-            <h2>Our Channels</h2>
-            <ul class="link-list" id="channel-list">
-                <li>Loading channels...</li>
-            </ul>
-        </section>
+            <section id="page-channels" class="page-content">
+                <div class="info-card full-width">
+                     <h2><i class="fas fa-bullhorn icon"></i> Our Channels</h2>
+                     <ul class="link-list" id="channel-list">
+                         <li>Loading channels...</li>
+                     </ul>
+                 </div>
+            </section>
 
-        <section id="bots" class="info-card">
-            <h2>Our Bots</h2>
-            <ul class="link-list" id="bot-list">
-                <li>Loading bots...</li>
-            </ul>
-            <button id="refresh-button" class="refresh-button">Refresh Status</button>
-            <p class="disclaimer">
-                Bot status is checked via HTTPS ping. Requires the bot server to allow requests (CORS).
-                <span class="status-indicator status-online"></span> Online
-                <span class="status-indicator status-offline"></span> Offline/Error
-                <span class="status-indicator status-pending"></span> Checking
-            </p>
-        </section>
+            <section id="page-bots" class="page-content">
+                <div class="info-card full-width">
+                    <h2><i class="fas fa-robot icon"></i> Our Bots Status</h2>
+                    <ul class="link-list" id="bot-list">
+                        <li>Loading bots...</li>
+                    </ul>
+                    <button id="refresh-button" class="styled-button">
+                        <i class="fas fa-sync-alt"></i> Refresh Status
+                    </button>
+                </div>
+            </section>
+             </main>
 
+        <nav class="app-nav">
+            <button class="nav-item active" data-page="page-about">
+                <i class="fas fa-home"></i>
+                <span>About</span>
+            </button>
+            <button class="nav-item" data-page="page-channels">
+                 <i class="fas fa-bullhorn"></i>
+                 <span>Channels</span>
+            </button>
+            <button class="nav-item" data-page="page-bots">
+                 <i class="fas fa-robot"></i>
+                 <span>Bots</span>
+            </button>
+             </nav>
     </div>
 
     <script src="script.js"></script>

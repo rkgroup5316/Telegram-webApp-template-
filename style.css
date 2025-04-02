@@ -1,21 +1,30 @@
 /* Basic Reset & Theme Variables */
 :root {
-    --tg-theme-bg-color: var(--tg-theme-bg-color, #ffffff);
-    --tg-theme-text-color: var(--tg-theme-text-color, #212121);
-    --tg-theme-hint-color: var(--tg-theme-hint-color, #aaaaaa);
-    --tg-theme-link-color: var(--tg-theme-link-color, #2481cc);
-    --tg-theme-button-color: var(--tg-theme-button-color, #2481cc);
-    --tg-theme-button-text-color: var(--tg-theme-button-text-color, #ffffff);
-    --tg-theme-secondary-bg-color: var(--tg-theme-secondary-bg-color, #f5f5f5);
+    /* Telegram Theme Variables (with fallbacks) */
+    --tg-theme-bg-color: var(--tg-var-bg-color, #ffffff);
+    --tg-theme-text-color: var(--tg-var-text-color, #212121);
+    --tg-theme-hint-color: var(--tg-var-hint-color, #aaaaaa);
+    --tg-theme-link-color: var(--tg-var-link-color, #2481cc);
+    --tg-theme-button-color: var(--tg-var-button-color, #2481cc);
+    --tg-theme-button-text-color: var(--tg-var-button-text-color, #ffffff);
+    --tg-theme-secondary-bg-color: var(--tg-var-secondary-bg-color, #f5f5f5);
+    --tg-theme-header-bg-color: var(--tg-var-header-bg-color, var(--tg-theme-secondary-bg-color)); /* Use secondary if header specific isn't set */
+    --tg-theme-section-bg-color: var(--tg-var-section-bg-color, var(--tg-theme-bg-color));
+    --tg-theme-section-header-text-color: var(--tg-var-section-header-text-color, var(--tg-theme-text-color));
 
+
+    /* Custom Variables */
     --status-online: #4CAF50; /* Green */
     --status-offline: #F44336; /* Red */
-    --status-pending: var(--tg-theme-hint-color); /* Grey */
-    --status-error: #FF9800; /* Orange */
+    --status-pending: #ffc107; /* Amber/Yellow */
+    --status-error: #FF9800;  /* Orange */
 
     --card-bg-color: var(--tg-theme-secondary-bg-color);
-    --card-border-color: color-mix(in srgb, var(--tg-theme-hint-color) 20%, transparent);
-    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --card-border-color: color-mix(in srgb, var(--tg-theme-hint-color) 15%, transparent);
+    --card-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+    --border-radius-sm: 6px;
+    --border-radius-md: 10px;
+    --spacing-unit: 15px;
 }
 
 * {
@@ -24,63 +33,111 @@
     padding: 0;
 }
 
+html {
+    height: 100%; /* Ensure html takes full height */
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--tg-theme-bg-color);
     color: var(--tg-theme-text-color);
-    line-height: 1.6;
-    padding: 15px;
-    overscroll-behavior-y: none; /* Prevent pull-to-refresh issues */
+    line-height: 1.5;
+    overscroll-behavior-y: none;
     -webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
+    -moz-osx-font-smoothing: grayscale;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; /* Ensure body takes at least full viewport height */
+    padding: 0; /* Remove body padding, handle in container */
 }
 
-.container {
-    max-width: 700px;
+.app-container {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Allow container to grow */
+    max-width: 800px; /* Adjust max width if needed */
     margin: 0 auto;
+    width: 100%;
 }
 
 /* Header */
 .app-header {
+    background-color: var(--tg-theme-header-bg-color);
+    padding: var(--spacing-unit);
     text-align: center;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
     border-bottom: 1px solid var(--card-border-color);
+    position: sticky; /* Keep header visible */
+    top: 0;
+    z-index: 10;
 }
 
 .app-header h1 {
-    font-size: 1.8em;
+    font-size: 1.5em;
     font-weight: 600;
     color: var(--tg-theme-text-color);
+    margin: 0;
 }
 
-.app-header p {
-    font-size: 1em;
-    color: var(--tg-theme-hint-color);
+/* Main Content Area */
+.app-content {
+    flex-grow: 1; /* Allow content to fill space */
+    padding: var(--spacing-unit);
+    background-color: var(--tg-theme-section-bg-color);
+    overflow-y: auto; /* Allow content scrolling */
+}
+
+/* Page Sections */
+.page-content {
+    display: none; /* Hide pages by default */
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.page-content.active-page {
+    display: block; /* Show active page */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Info Cards */
 .info-card {
     background-color: var(--card-bg-color);
-    border-radius: 10px;
-    padding: 15px 20px;
-    margin-bottom: 20px;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
     box-shadow: var(--card-shadow);
     border: 1px solid var(--card-border-color);
 }
+.info-card.full-width { /* Use for lists etc. */
+   /* Already block level, this class is mostly semantic now */
+}
 
 .info-card h2 {
-    font-size: 1.3em;
+    font-size: 1.2em;
     font-weight: 600;
-    color: var(--tg-theme-text-color);
+    color: var(--tg-theme-section-header-text-color);
     margin-bottom: 10px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid var(--card-border-color);
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Space between icon and text */
+}
+
+.info-card h2 .icon {
+    color: var(--tg-theme-hint-color);
+    font-size: 1em; /* Match text size */
+    width: 1.2em; /* Ensure consistent spacing */
+    text-align: center;
 }
 
 .info-card p {
-    font-size: 1em;
+    font-size: 0.95em;
     color: var(--tg-theme-text-color);
+    margin-bottom: 10px;
+}
+.info-card p:last-child {
+    margin-bottom: 0;
 }
 
 /* Link Lists (Channels & Bots) */
@@ -94,78 +151,160 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 0;
+    padding: 12px 5px; /* Slightly more padding */
     border-bottom: 1px solid var(--card-border-color);
-    min-height: 40px; /* Ensure consistent height */
+    min-height: 45px; /* Consistent height */
+    transition: background-color 0.2s ease;
 }
 
 .link-list li:last-child {
     border-bottom: none;
 }
 
+.link-list li:hover {
+    background-color: rgba(0, 0, 0, 0.03); /* Subtle hover */
+}
+
 .link-list a {
     color: var(--tg-theme-link-color);
     text-decoration: none;
     font-weight: 500;
-    transition: opacity 0.2s ease;
-    flex-grow: 1; /* Allow link to take available space */
-    margin-right: 10px; /* Space between link and status */
+    transition: color 0.2s ease;
+    flex-grow: 1;
+    margin-right: 10px;
+    display: flex; /* Align icon if added later */
+    align-items: center;
+    gap: 8px;
 }
 
 .link-list a:hover {
-    opacity: 0.7;
+    color: color-mix(in srgb, var(--tg-theme-link-color) 80%, black); /* Slightly darken link on hover */
 }
 
 /* Status Indicators */
 .status-indicator {
     display: inline-block;
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    margin-left: 8px; /* Space before status dot */
-    flex-shrink: 0; /* Prevent shrinking */
+    margin-left: 8px;
+    flex-shrink: 0;
     vertical-align: middle;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    position: relative; /* For potential animations */
+}
+
+/* Add subtle animation for pending */
+.status-pending {
+    background-color: var(--status-pending);
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.7; }
 }
 
 .status-online { background-color: var(--status-online); }
 .status-offline { background-color: var(--status-offline); }
-.status-pending { background-color: var(--status-pending); }
 .status-error { background-color: var(--status-error); }
 
-/* Refresh Button */
-.refresh-button {
-    display: inline-block;
-    margin-top: 15px;
-    padding: 8px 15px;
-    font-size: 0.9em;
+/* Styled Button (e.g., Refresh) */
+.styled-button {
+    display: inline-flex; /* Align icon and text */
+    align-items: center;
+    gap: 8px; /* Space between icon and text */
+    margin-top: var(--spacing-unit);
+    padding: 10px 18px;
+    font-size: 0.95em;
     font-weight: 500;
     color: var(--tg-theme-button-text-color);
     background-color: var(--tg-theme-button-color);
     border: none;
-    border-radius: 6px;
+    border-radius: var(--border-radius-sm);
     cursor: pointer;
-    transition: background-color 0.2s, opacity 0.2s;
+    transition: background-color 0.2s, opacity 0.2s, transform 0.1s ease;
 }
 
-.refresh-button:hover {
+.styled-button:hover {
     opacity: 0.9;
+    background-color: color-mix(in srgb, var(--tg-theme-button-color) 90%, black); /* Slightly darken */
 }
-.refresh-button:disabled {
+
+.styled-button:active {
+    transform: scale(0.98); /* Press effect */
+}
+
+.styled-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    background-color: var(--tg-theme-hint-color);
+}
+.styled-button .fa-sync-alt { /* Specific icon styling */
+   /* Add animation when loading if desired */
+}
+.styled-button.loading .fa-sync-alt {
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 
 /* Disclaimer Text */
 .disclaimer {
-    font-size: 0.85em;
+    font-size: 0.8em;
     color: var(--tg-theme-hint-color);
-    margin-top: 15px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--card-border-color);
 }
 .disclaimer .status-indicator {
-    width: 8px;
-    height: 8px;
-    margin-left: 5px; /* Adjust spacing */
+    width: 9px;
+    height: 9px;
+    margin-left: 5px;
     margin-right: 2px;
+}
+
+/* Bottom Navigation */
+.app-nav {
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0;
+    background-color: var(--tg-theme-secondary-bg-color); /* Or --tg-theme-bg-color */
+    border-top: 1px solid var(--card-border-color);
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+}
+
+.nav-item {
+    background: none;
+    border: none;
+    color: var(--tg-theme-hint-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5px 10px;
+    font-size: 0.75em;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    flex-grow: 1; /* Distribute space */
+    text-align: center;
+}
+
+.nav-item i {
+    font-size: 1.4em;
+    margin-bottom: 3px;
+}
+
+.nav-item:hover {
+    color: var(--tg-theme-text-color);
+}
+
+.nav-item.active {
+    color: var(--tg-theme-link-color); /* Active tab color */
+    font-weight: 600;
 }
