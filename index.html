@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Rkgroup Hub</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css"> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -26,14 +25,13 @@
                         </p>
                     </div>
                 </div>
-                
+
                 <div class="info-card animated">
                     <div class="card-icon"><i class="fas fa-book-open icon pulse"></i></div>
                     <div class="card-content">
                         <h2>How it Works</h2>
                         <p>
-                            Use the tabs below to navigate between sections. The bot status is checked
-                            periodically using a simple HTTPS request.
+                            Use the tabs below to navigate. Bot status is checked periodically.
                         </p>
                         <div class="status-legend">
                             <div class="status-item">
@@ -44,13 +42,16 @@
                                 <span class="status-indicator status-offline"></span>
                                 <span>Offline/Error</span>
                             </div>
+                             <div class="status-item">
+                                <span class="status-indicator status-error"></span> <span>Check Failed</span>
+                            </div>
                             <div class="status-item">
                                 <span class="status-indicator status-pending"></span>
                                 <span>Checking</span>
                             </div>
                         </div>
                         <p class="disclaimer">
-                            Bot status is checked via HTTPS ping. Requires the bot server to allow requests (CORS).
+                            Bot status check uses methods like HEAD requests or Image pings. Server reachability is checked, but CORS configuration on the server side can affect results.
                         </p>
                     </div>
                 </div>
@@ -100,7 +101,7 @@
             </button>
         </nav>
     </div>
-    
+
     <script src="ping.js"></script>
     <script src="script.js"></script>
 </body>
