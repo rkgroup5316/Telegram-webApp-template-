@@ -1,4 +1,3 @@
-import './ping.js';import './ping.js';
 
 // Define CONFIG first before it's used
 const CONFIG = {
