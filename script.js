@@ -1,29 +1,32 @@
-// --- Configuration (Ensure Timeout is reasonable) ---
+// --- Configuration ---
 const CONFIG = {
-    // ... (keep existing channels, bots, etc.) ...
-
-    // IMPORTANT: Replace placeholder URLs in 'bots' array!
+    channels: [
+        { name: "Rkgroup News", url: "https://t.me/rkgroupnews", icon: "fas fa-newspaper" },
+        { name: "Rkgroup Updates", url: "https://t.me/rkgroupupdates", icon: "fas fa-bell" }
+        // Add more channels as needed
+    ],
     bots: [
-         {
+        {
             name: "RkgroupBot",
             url: "https://t.me/RkgroupBot",
-            statusUrl: "https://animeosint-telgram.onrender.com", // Replace if needed
+            // IMPORTANT: Replace with your ACTUAL status check URL for this bot
+            statusUrl: "https://animeosint-telgram.onrender.com", // Example: Needs to be a reachable endpoint
             icon: "fas fa-robot"
         },
         {
             name: "RkgroupInfoBot",
             url: "https://t.me/RkgroupInfoBot",
+            // IMPORTANT: Replace with your ACTUAL status check URL for this bot
             statusUrl: "https://your-real-bot-status-endpoint.com/rkgroupinfobot", // <<< MUST BE REPLACED
             icon: "fas fa-info-circle"
         }
-        // ...
+        // Add more bots as needed
     ],
-
-    analyticsUrl: null, // Set to your endpoint or null
-    statusCheckInterval: 60000,
-    // Timeout for a single check attempt (e.g., fetch or image load)
-    statusCheckTimeout: 15000, // Reduced timeout (15 seconds) might be appropriate
-    globalStatusCheckTimeout: 45000
+    // IMPORTANT: Replace with your actual analytics endpoint if you use analytics
+    analyticsUrl: null, // Set to null or remove if not using analytics
+    statusCheckInterval: 60000, // Check status every 60 seconds
+    statusCheckTimeout: 20000, // Max time (ms) for a single bot status check
+    globalStatusCheckTimeout: 45000 // Max time (ms) for all bots check cycle
 };
 
 // --- Global Variables ---
