@@ -1,404 +1,302 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize Telegram WebApp with error handling
-    const tg = initializeTelegramWebApp();
-    if (!tg) return; // Exit if initialization failed
+// Define CONFIG first before it's used
+const CONFIG = {
+    // Your configuration settings
+    channels: [
+        { name: "Rkgroup News", url: "https://t.me/rkgroupnews", icon: "fas fa-newspaper" },
+        { name: "Rkgroup Updates", url: "https://t.me/rkgroupupdates", icon: "fas fa-bell" }
+    ],
+    bots: [
+        { name: "RkgroupBot", url: "https://t.me/RkgroupBot", statusUrl: "https://animeosint-telgram.onrender.com", icon: "fas fa-robot" },
+        { name: "RkgroupInfoBot", url: "https://t.me/RkgroupInfoBot", statusUrl: "https://your-bot-status-endpoint.com/rkgroupinfobot", icon: "fas fa-info-circle" }
+    ],
+    analyticsUrl: "https://your-analytics-endpoint.com/log"
+};
 
-    // Configuration - load from external config if possible in production
-    const CONFIG = {
-        channels: [
-            { name: "RKGROUP Main Channel", username: "YOUR_CHANNEL_USERNAME_1" },
-            { name: "RKGROUP Updates", username: "YOUR_CHANNEL_USERNAME_2" },
-        ],
-        bots: [
-            { name: "Awesome Bot One", username: "Test", pingUrl: "https://animeosint-telgram.onrender.com", id: "bot1" },
-            { name: "Cool Bot Two", username: "YOUR_BOT_USERNAME_2", pingUrl: "https://your_bot_2_server.com/ping", id: "bot2" },
-            { name: "Utility Bot (No Ping)", username: "YOUR_BOT_USERNAME_3", pingUrl: null, id: "bot3" },
-        ],
-        settings: {
-            pingTimeout: 5000,
-            pingInterval: 60000 * 5, // Check every 5 minutes
-            debugMode: false
-        }
-    };
-
-    // State management
-    const state = {
-        activePage: 'page-about',
-        isChecking: false,
-        lastCheckTime: null,
-        botStatuses: {}
-    };
-
-    // DOM element references
-    const elements = {
-        pageTitleElement: document.getElementById('page-title'),
-        channelListElement: document.getElementById('channel-list'),
-        botListElement: document.getElementById('bot-list'),
-        refreshButton: document.getElementById('refresh-button'),
-        navItems: document.querySelectorAll('.nav-item'),
-        pageContents: document.querySelectorAll('.page-content')
-    };
-
-    // Initialize app components
-    setupNavigation();
-    setupEventListeners();
-    populateChannels();
-    populateBots();
-    setupTheme();
-    showPage('page-about');
-    checkAllBots();
-
-    // Setup periodic bot status checks
-    if (CONFIG.settings.pingInterval > 0) {
-        setInterval(() => {
-            // Only auto-refresh if we're on the bots page or it's been a long time
-            const timeSinceLastCheck = Date.now() - (state.lastCheckTime || 0);
-            if (state.activePage === 'page-bots' || timeSinceLastCheck > CONFIG.settings.pingInterval * 2) {
-                checkAllBots(true); // true = silent refresh
-            }
-        }, CONFIG.settings.pingInterval);
+// Initialize the app when the document is ready
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        initializeTelegramWebApp();
+        setupNavigation();
+        loadChannelsList();
+        loadBotsList();
+        setupRefreshButton();
+    } catch (error) {
+        handleFatalError("Failed to initialize application", error);
     }
+});
 
-    // --- Core Functions ---
-
-    function initializeTelegramWebApp() {
-        try {
-            const tg = window.Telegram.WebApp;
-            tg.ready();
-            tg.expand();
-            tg.MainButton.hide();
-            tg.BackButton.show();
-            tg.BackButton.onClick(handleBackNavigation);
-            tg.enableClosingConfirmation();
-
-            // Log WebApp info in debug mode
-            if (CONFIG.settings.debugMode) {
-                console.log("Telegram WebApp initialized:", {
-                    version: tg.version,
-                    platform: tg.platform,
-                    colorScheme: tg.colorScheme,
-                    themeParams: tg.themeParams
-                });
-            }
-            return tg;
-        } catch (error) {
-            handleFatalError("Telegram WebApp initialization failed", error);
-            return null;
-        }
-    }
-
-    function setupTheme() {
-        try {
-            // Set body background to match Telegram theme
-            document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
+/**
+ * Initialize the Telegram WebApp
+ */
+function initializeTelegramWebApp() {
+    try {
+        // Check if running in Telegram WebApp environment
+        if (window.Telegram && window.Telegram.WebApp) {
+            const webApp = window.Telegram.WebApp;
             
-            // Apply theme colors to various elements
-            document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
-            document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
-            document.documentElement.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
-            document.documentElement.style.setProperty('--tg-theme-link-color', tg.themeParams.link_color || '#2678b6');
-            document.documentElement.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#50a8eb');
-            document.documentElement.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
-        } catch (error) {
-            console.error("Error applying theme:", error);
-            // Non-fatal, continue with default styling
-        }
-    }
-
-    function setupNavigation() {
-        // Add event listeners to nav items
-        elements.navItems.forEach(item => {
-            item.addEventListener('click', () => showPage(item.dataset.page));
-        });
-    }
-
-    function setupEventListeners() {
-        // Set up refresh button
-        elements.refreshButton.addEventListener('click', () => checkAllBots());
-        
-        // Optional: Add analytics events
-        document.addEventListener('click', (e) => {
-            // Check if clicked element is a channel or bot link
-            const linkParent = e.target.closest('a');
-            if (linkParent) {
-                const href = linkParent.getAttribute('href');
-                if (href && href.includes('t.me/')) {
-                    logAnalyticsEvent('link_click', {
-                        url: href,
-                        type: href.includes('/bot') ? 'bot' : 'channel'
-                    });
-                }
-            }
-        });
-    }
-
-    function showPage(pageId) {
-        // Update state
-        state.activePage = pageId;
-        
-        // Hide all pages
-        elements.pageContents.forEach(page => page.classList.remove('active-page'));
-        
-        // Show target page
-        const targetPage = document.getElementById(pageId);
-        if (targetPage) {
-            targetPage.classList.add('active-page');
+            // Initialize the WebApp
+            webApp.ready();
             
-            // Page-specific actions
-            if (pageId === 'page-bots' && shouldRefreshBots()) {
-                checkAllBots(true); // Silently refresh if needed
+            // Set theme variables
+            document.documentElement.style.setProperty('--tg-var-bg-color', webApp.backgroundColor);
+            document.documentElement.style.setProperty('--tg-var-text-color', webApp.textColor);
+            document.documentElement.style.setProperty('--tg-var-hint-color', webApp.backgroundColor);
+            document.documentElement.style.setProperty('--tg-var-link-color', webApp.linkColor);
+            document.documentElement.style.setProperty('--tg-var-button-color', webApp.buttonColor);
+            document.documentElement.style.setProperty('--tg-var-button-text-color', webApp.buttonTextColor);
+            document.documentElement.style.setProperty('--tg-var-secondary-bg-color', webApp.secondaryBackgroundColor);
+            
+            // Adjust header if needed
+            const headerTitle = document.getElementById('page-title');
+            if (headerTitle) {
+                headerTitle.textContent = "Rkgroup Hub";
             }
-        }
-
-        // Update active state in nav
-        elements.navItems.forEach(item => {
-            if (item.dataset.page === pageId) {
-                item.classList.add('active');
-                if (elements.pageTitleElement) {
-                    elements.pageTitleElement.textContent = item.querySelector('span').textContent;
-                }
-            } else {
-                item.classList.remove('active');
-            }
-        });
-        
-        // Log page view for analytics
-        logAnalyticsEvent('page_view', { page: pageId });
-    }
-
-    function handleBackNavigation() {
-        if (state.activePage !== 'page-about') {
-            showPage('page-about');
+            
+            // Log successful initialization
+            logAnalyticsEvent('webapp_initialized', { platform: 'telegram' });
         } else {
-            tg.close();
+            console.log('Not running in Telegram WebApp environment');
+            // Continue anyway for testing in browser
         }
+    } catch (error) {
+        handleFatalError("Telegram WebApp initialization failed", error);
     }
+}
 
-    function populateChannels() {
-        if (!CONFIG.channels || !CONFIG.channels.length) {
-            renderEmptyState(elements.channelListElement, 'No channels available');
-            return;
-        }
+/**
+ * Setup navigation between pages
+ */
+function setupNavigation() {
+    const navButtons = document.querySelectorAll('.nav-item');
+    navButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetPageId = this.getAttribute('data-page');
+            switchToPage(targetPageId);
+            
+            // Update active state on nav buttons
+            navButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Log navigation event
+            logAnalyticsEvent('page_view', { page: targetPageId });
+        });
+    });
+}
+
+/**
+ * Switch to the specified page
+ */
+function switchToPage(pageId) {
+    const pages = document.querySelectorAll('.page-content');
+    pages.forEach(page => {
+        page.classList.remove('active-page');
+    });
+    
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) {
+        targetPage.classList.add('active-page');
+    }
+}
+
+/**
+ * Load and display channels list
+ */
+function loadChannelsList() {
+    const channelList = document.getElementById('channel-list');
+    if (!channelList) return;
+    
+    try {
+        // Clear loading indicator
+        channelList.innerHTML = '';
         
-        elements.channelListElement.innerHTML = CONFIG.channels.map(channel => `
-            <li>
-                <a href="https://t.me/${escapeHtml(channel.username)}" target="_blank" class="channel-link" data-id="${escapeHtml(channel.username)}">
-                    <i class="fas fa-satellite-dish icon"></i> ${escapeHtml(channel.name)}
+        // Add channels from config
+        CONFIG.channels.forEach(channel => {
+            const listItem = document.createElement('li');
+            listItem.innerHTML = `
+                <a href="${channel.url}" target="_blank">
+                    <i class="${channel.icon} icon"></i>
+                    ${channel.name}
                 </a>
                 <i class="fas fa-external-link-alt external-icon"></i>
-            </li>
-        `).join('');
-    }
-
-    function populateBots() {
-        if (!CONFIG.bots || !CONFIG.bots.length) {
-            renderEmptyState(elements.botListElement, 'No bots available');
-            return;
-        }
-        
-        elements.botListElement.innerHTML = CONFIG.bots.map(bot => `
-            <li id="li-${escapeHtml(bot.id)}">
-                <a href="https://t.me/${escapeHtml(bot.username)}" target="_blank" class="bot-link" data-id="${escapeHtml(bot.id)}">
-                    <i class="fas fa-robot icon"></i> ${escapeHtml(bot.name)}
-                </a>
-                <span class="status-container">
-                    ${bot.pingUrl ? `<span class="status-indicator ${getBotStatusClass(bot.id)}" id="status-${escapeHtml(bot.id)}" title="${getBotStatusTitle(bot.id)}"></span>` : '<span class="status-na" title="Status check N/A">-</span>'}
-                </span>
-            </li>
-        `).join('');
-    }
-
-    async function checkAllBots(silent = false) {
-        if (state.isChecking) return;
-        state.isChecking = true;
-
-        // Update UI for loading state
-        if (!silent) {
-            elements.refreshButton.disabled = true;
-            elements.refreshButton.classList.add('loading');
-            elements.refreshButton.querySelector('span').textContent = ' Checking...';
-        }
-
-        // Set pending states
-        CONFIG.bots.forEach(bot => {
-            if (bot.pingUrl) {
-                updateBotStatus(bot.id, 'pending', 'Checking...');
-            }
+            `;
+            channelList.appendChild(listItem);
         });
-
-        try {
-            // Group ping operations by batch to avoid overwhelming the network
-            const pingableBots = CONFIG.bots.filter(bot => bot.pingUrl);
-            const results = await pingBotsInBatches(pingableBots, 3); // Check 3 at a time
-            
-            // Process results if needed
-            if (CONFIG.settings.debugMode) {
-                console.log("Bot check results:", results);
-            }
-        } catch (error) {
-            console.error("Error during bot status check:", error);
-        } finally {
-            // Update UI after checking
-            if (!silent) {
-                elements.refreshButton.disabled = false;
-                elements.refreshButton.classList.remove('loading');
-                elements.refreshButton.querySelector('span').textContent = ' Refresh Status';
-            }
-            
-            state.isChecking = false;
-            state.lastCheckTime = Date.now();
+        
+        // If no channels, show message
+        if (CONFIG.channels.length === 0) {
+            channelList.innerHTML = '<li>No channels available</li>';
         }
+    } catch (error) {
+        channelList.innerHTML = '<li>Error loading channels</li>';
+        console.error('Failed to load channels:', error);
     }
+}
 
-    async function pingBotsInBatches(bots, batchSize) {
-        const results = [];
-        
-        // Process bots in batches
-        for (let i = 0; i < bots.length; i += batchSize) {
-            const batch = bots.slice(i, i + batchSize);
-            const batchPromises = batch.map(bot => pingBot(bot));
-            
-            // Wait for current batch to finish before starting next batch
-            const batchResults = await Promise.allSettled(batchPromises);
-            results.push(...batchResults);
-        }
-        
-        return results;
-    }
-
-    async function pingBot(bot) {
-        if (!bot.pingUrl) return null;
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), CONFIG.settings.pingTimeout);
-
-        try {
-            const fetchOptions = {
-                method: 'HEAD',  // More efficient than GET
-                mode: 'cors',    // Preferred if CORS is properly configured
-                signal: controller.signal,
-                cache: 'no-store'
-            };
-
-            const startTime = performance.now();
-            const response = await fetch(bot.pingUrl, fetchOptions);
-            const responseTime = Math.round(performance.now() - startTime);
-            
-            clearTimeout(timeoutId);
-            
-            if (response.ok) {
-                updateBotStatus(bot.id, 'online', `Online (${responseTime}ms, ${formatTime(new Date())})`);
-                return { bot, status: 'online', responseTime, httpStatus: response.status };
-            } else {
-                updateBotStatus(bot.id, 'offline', `Error: HTTP ${response.status} (${formatTime(new Date())})`);
-                return { bot, status: 'offline', responseTime, httpStatus: response.status };
-            }
-        } catch (error) {
-            clearTimeout(timeoutId);
-            
-            let errorMessage;
-            let errorType;
-            
-            if (error.name === 'AbortError') {
-                errorType = 'timeout';
-                errorMessage = `Timeout after ${CONFIG.settings.pingTimeout}ms (${formatTime(new Date())})`;
-            } else if (error instanceof TypeError) {
-                errorType = 'network';
-                errorMessage = `Network error (${formatTime(new Date())})`;
-            } else {
-                errorType = 'unknown';
-                errorMessage = `Error: ${error.message} (${formatTime(new Date())})`;
-            }
-            
-            updateBotStatus(bot.id, 'offline', errorMessage);
-            return { bot, status: 'offline', error: errorType, message: errorMessage };
-        }
-    }
-
-    // --- Helper Functions ---
-
-    function updateBotStatus(botId, status, message) {
-        const statusElement = document.getElementById(`status-${botId}`);
-        if (!statusElement) return;
-        
-        // Update element
-        statusElement.className = `status-indicator status-${status}`;
-        statusElement.title = message;
-        
-        // Store in state
-        state.botStatuses[botId] = { status, message, timestamp: Date.now() };
-    }
-
-    function getBotStatusClass(botId) {
-        return state.botStatuses[botId]?.status ? `status-${state.botStatuses[botId].status}` : 'status-unknown';
-    }
+/**
+ * Load and display bots list
+ */
+function loadBotsList() {
+    const botList = document.getElementById('bot-list');
+    if (!botList) return;
     
-    function getBotStatusTitle(botId) {
-        return state.botStatuses[botId]?.message || 'Status unknown';
-    }
-
-    function shouldRefreshBots() {
-        if (!state.lastCheckTime) return true;
-        return Date.now() - state.lastCheckTime > 60000; // Refresh if older than 1 minute
-    }
-
-    function renderEmptyState(element, message) {
-        if (element) {
-            element.innerHTML = `<li class="empty-state">${escapeHtml(message)}</li>`;
+    try {
+        // Clear loading indicator
+        botList.innerHTML = '';
+        
+        // Add bots from config
+        CONFIG.bots.forEach(bot => {
+            const listItem = document.createElement('li');
+            listItem.innerHTML = `
+                <a href="${bot.url}" target="_blank">
+                    <i class="${bot.icon} icon"></i>
+                    ${bot.name}
+                </a>
+                <span class="status-indicator status-pending" data-status-url="${bot.statusUrl}"></span>
+            `;
+            botList.appendChild(listItem);
+        });
+        
+        // If no bots, show message
+        if (CONFIG.bots.length === 0) {
+            botList.innerHTML = '<li>No bots available</li>';
         }
-    }
-
-    function handleFatalError(message, error) {
-        console.error(message, error);
         
-        // Display user-friendly error in UI
-        const container = document.querySelector('.app-container') || document.body;
-        const errorElement = document.createElement('div');
-        errorElement.className = 'fatal-error';
-        errorElement.innerHTML = `
-            <h3>Something went wrong</h3>
-            <p>${escapeHtml(message)}</p>
-            <button onclick="window.location.reload()">Reload App</button>
+        // Start checking bot statuses
+        checkAllBotStatuses();
+    } catch (error) {
+        botList.innerHTML = '<li>Error loading bots</li>';
+        console.error('Failed to load bots:', error);
+    }
+}
+
+/**
+ * Setup refresh button for bot statuses
+ */
+function setupRefreshButton() {
+    const refreshButton = document.getElementById('refresh-button');
+    if (!refreshButton) return;
+    
+    refreshButton.addEventListener('click', function() {
+        this.classList.add('loading');
+        checkAllBotStatuses().finally(() => {
+            this.classList.remove('loading');
+        });
+        
+        // Log refresh event
+        logAnalyticsEvent('refresh_status', { timestamp: new Date().toISOString() });
+    });
+}
+
+/**
+ * Check status for all bots
+ */
+async function checkAllBotStatuses() {
+    const statusIndicators = document.querySelectorAll('[data-status-url]');
+    
+    for (const indicator of statusIndicators) {
+        await checkBotStatus(indicator);
+    }
+}
+
+/**
+ * Check status for a single bot
+ */
+async function checkBotStatus(indicator) {
+    const statusUrl = indicator.getAttribute('data-status-url');
+    if (!statusUrl) return;
+    
+    // Reset to pending state
+    indicator.className = 'status-indicator status-pending';
+    
+    try {
+        // Add a small delay to make the UI feel more responsive
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const response = await fetch(statusUrl, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache',
+            headers: {
+                'Accept': 'application/json'
+            },
+            timeout: 5000
+        });
+        
+        if (response.ok) {
+            indicator.className = 'status-indicator status-online';
+        } else {
+            indicator.className = 'status-indicator status-offline';
+        }
+    } catch (error) {
+        console.error('Failed to check bot status:', error);
+        indicator.className = 'status-indicator status-error';
+    }
+}
+
+/**
+ * Log analytics events
+ */
+function logAnalyticsEvent(eventName, eventData = {}) {
+    try {
+        // Skip if no analytics URL configured
+        if (!CONFIG.analyticsUrl) return;
+        
+        // Get Telegram user data if available
+        const userData = {};
+        if (window.Telegram && window.Telegram.WebApp) {
+            const webApp = window.Telegram.WebApp;
+            if (webApp.initDataUnsafe && webApp.initDataUnsafe.user) {
+                userData.userId = webApp.initDataUnsafe.user.id;
+                userData.username = webApp.initDataUnsafe.user.username;
+            }
+        }
+        
+        // Prepare log data
+        const logData = {
+            event: eventName,
+            timestamp: new Date().toISOString(),
+            data: eventData,
+            user: userData,
+            appVersion: '1.0.0'
+        };
+        
+        // Send log data
+        fetch(CONFIG.analyticsUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(logData)
+        }).catch(error => {
+            console.error('Failed to log analytics:', error);
+        });
+    } catch (error) {
+        console.error('Error logging analytics:', error);
+    }
+}
+
+/**
+ * Handle fatal errors
+ */
+function handleFatalError(message, error) {
+    console.error(message, error);
+    
+    // Log the error
+    logAnalyticsEvent('fatal_error', { 
+        message: message,
+        error: error ? error.toString() : 'Unknown error'
+    });
+    
+    // Show error UI
+    const appContent = document.querySelector('.app-content');
+    if (appContent) {
+        appContent.innerHTML = `
+            <div class="fatal-error">
+                <h3><i class="fas fa-exclamation-triangle"></i> ${message}</h3>
+                <p>Sorry, something went wrong. Please try again later.</p>
+                <p class="error-details">${error}</p>
+                <button onclick="location.reload()">Reload App</button>
+            </div>
         `;
-        
-        container.innerHTML = '';
-        container.appendChild(errorElement);
-        
-        // Optionally report to error tracking service
-        logAnalyticsEvent('error', { type: 'fatal', message, details: error?.toString() });
     }
-
-    function logAnalyticsEvent(eventName, data = {}) {
-        if (!CONFIG.settings.debugMode) return;
-        
-        // In production, replace with actual analytics
-        console.log(`[Analytics] ${eventName}:`, data);
-        
-        // Example implementation for real analytics:
-        // if (window.tg?.initDataUnsafe?.user) {
-        //     data.userId = window.tg.initDataUnsafe.user.id;
-        // }
-        // fetch('https://your-analytics-endpoint.com/event', {
-        //     method: 'POST',
-        //     headers: { 'Content-Type': 'application/json' },
-        //     body: JSON.stringify({ event: eventName, ...data, timestamp: Date.now() })
-        // }).catch(err => console.error('Analytics error:', err));
-    }
-
-    function escapeHtml(unsafe) {
-        if (typeof unsafe !== 'string') return '';
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
-    function formatTime(date) {
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    // Log initialization complete
-    console.log(`RKGroup Mini App initialized (${CONFIG.channels.length} channels, ${CONFIG.bots.length} bots)`);
-});
+}
