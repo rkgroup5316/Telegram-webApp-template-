@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // *** REPLACE with your actual bot data AND VALID PING URLS ***
     const bots = [
-        { name: "Awesome Bot One", username: "YOUR_BOT_USERNAME_1", pingUrl: "https://your_bot_1_server.com/health", id: "bot1" },
+        { name: "Awesome Bot One", username: "Test", pingUrl: "https://animeosint-telgram.onrender.com", id: "bot1" },
         { name: "Cool Bot Two", username: "YOUR_BOT_USERNAME_2", pingUrl: "https://your_bot_2_server.com/ping", id: "bot2" },
         { name: "Utility Bot (No Ping)", username: "YOUR_BOT_USERNAME_3", pingUrl: null, id: "bot3" },
          // Add more bots here - pingUrl MUST be HTTPS and have CORS enabled!
