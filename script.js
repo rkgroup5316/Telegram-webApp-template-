@@ -1,32 +1,29 @@
-// --- Configuration ---
+// --- Configuration (Ensure Timeout is reasonable) ---
 const CONFIG = {
-    channels: [
-        { name: "Rkgroup News", url: "https://t.me/rkgroupnews", icon: "fas fa-newspaper" },
-        { name: "Rkgroup Updates", url: "https://t.me/rkgroupupdates", icon: "fas fa-bell" }
-        // Add more channels as needed
-    ],
+    // ... (keep existing channels, bots, etc.) ...
+
+    // IMPORTANT: Replace placeholder URLs in 'bots' array!
     bots: [
-        {
+         {
             name: "RkgroupBot",
             url: "https://t.me/RkgroupBot",
-            // IMPORTANT: Replace with your ACTUAL status check URL for this bot
-            statusUrl: "https://animeosint-telgram.onrender.com", // Example: Needs to be a reachable endpoint
+            statusUrl: "https://animeosint-telgram.onrender.com", // Replace if needed
             icon: "fas fa-robot"
         },
         {
             name: "RkgroupInfoBot",
             url: "https://t.me/RkgroupInfoBot",
-            // IMPORTANT: Replace with your ACTUAL status check URL for this bot
             statusUrl: "https://your-real-bot-status-endpoint.com/rkgroupinfobot", // <<< MUST BE REPLACED
             icon: "fas fa-info-circle"
         }
-        // Add more bots as needed
+        // ...
     ],
-    // IMPORTANT: Replace with your actual analytics endpoint if you use analytics
-    analyticsUrl: null, // Set to null or remove if not using analytics
-    statusCheckInterval: 60000, // Check status every 60 seconds
-    statusCheckTimeout: 20000, // Max time (ms) for a single bot status check
-    globalStatusCheckTimeout: 45000 // Max time (ms) for all bots check cycle
+
+    analyticsUrl: null, // Set to your endpoint or null
+    statusCheckInterval: 60000,
+    // Timeout for a single check attempt (e.g., fetch or image load)
+    statusCheckTimeout: 15000, // Reduced timeout (15 seconds) might be appropriate
+    globalStatusCheckTimeout: 45000
 };
 
 // --- Global Variables ---
@@ -285,117 +282,165 @@ async function checkAllBotStatuses() {
 
 async function checkBotStatus(indicator) {
     const statusUrl = indicator.getAttribute('data-status-url');
-    const hostname = getHostname(statusUrl); // Helper to get hostname for logging
+    const hostname = getHostname(statusUrl); // Assuming getHostname helper exists
 
     if (!statusUrl) {
-        console.warn("Indicator found without a data-status-url attribute.");
         indicator.className = 'status-indicator status-error';
         indicator.title = 'Missing status URL';
-        return; // No need to proceed
+        console.warn("Indicator found without a data-status-url attribute.");
+        return;
     }
 
-    // Reset to pending state and clear previous title
     indicator.className = 'status-indicator status-pending';
     indicator.title = `Checking ${hostname}...`;
 
+    // Use AbortController for fetch timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-        console.warn(`Aborting check for ${hostname} due to timeout (${CONFIG.statusCheckTimeout}ms)`);
-        controller.abort();
-    }, CONFIG.statusCheckTimeout);
+    const fetchTimeoutId = setTimeout(() => controller.abort(), CONFIG.statusCheckTimeout);
 
     let isOnline = false;
-    let checkMethod = 'unknown'; // Track which method succeeded/failed
+    let checkMethod = 'unknown';
+    let errorDetail = null;
 
     try {
-        // --- Strategy 1: Use ping.js if available ---
-        if (typeof ping !== 'undefined' && ping.ping) {
-            checkMethod = 'ping.js';
-            console.log(`Checking ${hostname} using ping.js...`);
-            try {
-                isOnline = await new Promise((resolve, reject) => {
-                    // Note: ping.js uses callbacks, we wrap in a promise
-                    ping.ping({
-                        url: statusUrl,
-                        timeout: CONFIG.statusCheckTimeout - 500, // Slightly less than main timeout
-                        logFailed: false, // We handle logging
-                        onSuccess: () => { console.log(`ping.js success for ${hostname}`); resolve(true); },
-                        onFail: () => { console.log(`ping.js fail for ${hostname}`); resolve(false); },
-                        onError: (err) => { console.warn(`ping.js error for ${hostname}:`, err); reject(err); } // Reject on actual errors
-                    });
-                });
-            } catch (pingJsError) {
-                console.warn(`ping.js threw an error for ${hostname}, will fallback. Error:`, pingJsError);
-                isOnline = false; // Ensure it's false if ping.js errored
-                checkMethod = 'ping.js (error)';
-                 // Fall through to next strategy
-            }
-        } else {
-             console.log("ping.js not found, skipping.");
-             checkMethod = 'ping.js (skipped)';
-        }
+        // --- Strategy 1: Standard Fetch (Requires CORS configured on the server) ---
+        checkMethod = 'fetch (standard)';
+        console.log(`Checking ${hostname} using standard fetch...`);
+        try {
+            const response = await fetch(statusUrl, {
+                method: 'HEAD', // Use HEAD for efficiency
+                cache: 'no-cache',
+                signal: controller.signal,
+                redirect: 'follow', // Important: follow redirects
+                 // **NO** mode: 'no-cors' here!
+            });
 
+            clearTimeout(fetchTimeoutId); // Clear fetch-specific timeout
 
-        // --- Strategy 2: Fallback to Fetch HEAD with no-cors (if ping.js failed or skipped) ---
-        if (!isOnline && typeof fetch !== 'undefined') {
-            checkMethod = 'fetch (no-cors)';
-            console.log(`Checking ${hostname} using fetch (HEAD, no-cors)...`);
-            try {
-                await fetch(statusUrl, {
-                    method: 'HEAD',
-                    mode: 'no-cors',
-                    cache: 'no-cache',
-                    signal: controller.signal, // Use abort controller
-                    redirect: 'follow'
-                });
-                // If fetch with no-cors doesn't throw a network error, consider it reachable
-                console.log(`Workspace (no-cors) request sent without immediate error for ${hostname}. Assuming reachable.`);
+            if (response.ok) { // Status 200-299?
                 isOnline = true;
-            } catch (fetchError) {
-                 if (fetchError.name === 'AbortError') {
-                    // Already handled by the main timeout logic below
-                    throw fetchError; // Re-throw abort error
-                }
-                console.warn(`Workspace (no-cors) failed for ${hostname}:`, fetchError);
-                isOnline = false; // Fetch failed
-                 checkMethod = 'fetch (no-cors, failed)';
-                // Fall through to next strategy (Image ping) - Currently no explicit image ping fallback here,
-                // ping.js already includes it. If you remove ping.js, you might add an Image ping here.
+                console.log(`Standard fetch successful (status ${response.status}) for ${hostname}.`);
+            } else {
+                // Server responded, but with an error status (4xx, 5xx)
+                isOnline = false;
+                errorDetail = `Server responded with status ${response.status}`;
+                console.warn(`Standard fetch for ${hostname} returned non-OK status: ${response.status}`);
             }
-        } else if (isOnline && checkMethod === 'ping.js') {
-             console.log(`Status for ${hostname} already determined as ONLINE by ping.js.`);
-        } else {
-             console.log(`Skipping fetch check for ${hostname} (already online or fetch unavailable).`);
+
+        } catch (fetchError) {
+            clearTimeout(fetchTimeoutId); // Clear timeout on error too
+
+            if (fetchError.name === 'AbortError') {
+                // Fetch timed out via AbortController
+                console.warn(`Standard fetch timed out for ${hostname}.`);
+                isOnline = false;
+                errorDetail = 'Fetch timed out';
+                checkMethod = 'fetch (standard, timeout)';
+                // Don't proceed to Image Ping if fetch itself timed out
+                throw fetchError; // Propagate timeout to outer catch block
+
+            } else if (fetchError instanceof TypeError) {
+                // Often indicates Network error OR CORS issue
+                 console.warn(`Standard fetch failed for ${hostname}. Likely CORS or Network Error:`, fetchError.message);
+                 // Assume offline unless we specifically try Image Ping
+                 isOnline = false; // Default to offline on TypeError
+                 errorDetail = `Workspace failed (Network/CORS?)`;
+                 checkMethod = 'fetch (standard, failed)';
+
+                 // If CORS is suspected, we *could* try the Image ping, but let's keep it simple first:
+                 // Treat TypeError (Network/CORS failure) as OFFLINE for now.
+                 // If you absolutely need to check behind CORS without server changes, uncomment Image Ping below.
+
+            } else {
+                 // Other unexpected fetch errors
+                 console.error(`Unexpected standard fetch error for ${hostname}:`, fetchError);
+                 isOnline = false;
+                 errorDetail = `Unexpected fetch error: ${fetchError.message}`;
+                 checkMethod = 'fetch (standard, error)';
+            }
         }
 
-        // --- Final Result ---
-        clearTimeout(timeoutId); // Clear the timeout since the check completed or failed naturally
+        /* --- Optional Strategy 2: Image Ping (If standard fetch fails due to CORS) ---
+           * Uncomment this section ONLY if you cannot configure CORS on the statusUrl server
+           * AND you accept the limitations of Image pinging.
+           * It's generally less reliable than a proper fetch check.
 
+        if (!isOnline && checkMethod.includes('failed') && errorDetail && errorDetail.includes('CORS')) {
+             checkMethod = 'Image Ping';
+             console.log(`Standard fetch failed due to suspected CORS for ${hostname}. Falling back to Image Ping...`);
+             isOnline = await new Promise((resolve) => {
+                 const img = new Image();
+                 let triggered = false; // Prevent double resolve
+
+                 const imgTimeoutId = setTimeout(() => {
+                     if (triggered) return;
+                     triggered = true;
+                     console.warn(`Image Ping timed out for ${hostname}`);
+                     img.onload = img.onerror = null;
+                     if (document.body.contains(img)) document.body.removeChild(img);
+                     errorDetail = 'Image ping timed out';
+                     resolve(false);
+                 }, CONFIG.statusCheckTimeout - 500); // Slightly less timeout for image
+
+                 img.onload = () => {
+                     if (triggered) return;
+                     triggered = true;
+                     clearTimeout(imgTimeoutId);
+                     console.log(`Image Ping success for ${hostname}`);
+                     img.onload = img.onerror = null;
+                      if (document.body.contains(img)) document.body.removeChild(img);
+                     resolve(true);
+                 };
+                 img.onerror = () => {
+                     if (triggered) return;
+                     triggered = true;
+                     clearTimeout(imgTimeoutId);
+                     console.warn(`Image Ping failed for ${hostname}`);
+                     img.onload = img.onerror = null;
+                     if (document.body.contains(img)) document.body.removeChild(img);
+                     errorDetail = 'Image ping failed';
+                     resolve(false);
+                 };
+
+                 const uniqueUrl = `${statusUrl}${statusUrl.includes('?') ? '&' : '?'}ping_img=${Date.now()}`;
+                 img.src = uniqueUrl;
+
+                 // Style and append to trigger load
+                 img.style.position = 'absolute'; img.style.left = '-9999px'; img.style.top = '-9999px';
+                 img.style.width = '1px'; img.style.height = '1px';
+                 document.body.appendChild(img);
+             });
+        }
+        */
+
+        // --- Final Result Determination ---
         if (isOnline) {
             indicator.className = 'status-indicator status-online';
             indicator.title = `${hostname} is Online (Checked via ${checkMethod})`;
             console.log(`${hostname} reported as ONLINE.`);
-             logAnalyticsEvent('bot_status_check', { url: hostname, status: 'online', method: checkMethod });
+            logAnalyticsEvent('bot_status_check', { url: hostname, status: 'online', method: checkMethod });
         } else {
-             indicator.className = 'status-indicator status-offline';
-             indicator.title = `${hostname} is Offline or Unreachable (Checked via ${checkMethod})`;
-             console.log(`${hostname} reported as OFFLINE.`);
-             logAnalyticsEvent('bot_status_check', { url: hostname, status: 'offline', method: checkMethod });
+            // Any failure path should lead here
+            indicator.className = 'status-indicator status-offline'; // Use offline class
+            indicator.title = `${hostname} is Offline/Unreachable. ${errorDetail || ''} (Method: ${checkMethod})`;
+            console.log(`${hostname} reported as OFFLINE/UNREACHABLE. Detail: ${errorDetail || 'N/A'}`);
+            logAnalyticsEvent('bot_status_check', { url: hostname, status: 'offline', method: checkMethod, detail: errorDetail });
         }
 
     } catch (error) {
-        // Catch errors from await/fetch/ping.js promise rejection
-        clearTimeout(timeoutId); // Ensure timeout is cleared on error too
+        // Catch errors propagated from fetch (like timeout) or other unexpected issues
+        clearTimeout(fetchTimeoutId); // Ensure timeout cleared on any error
 
-        console.error(`Failed to check status for ${hostname}:`, error);
-        indicator.className = 'status-indicator status-error';
+        console.error(`General error during status check for ${hostname}:`, error);
+        indicator.className = 'status-indicator status-error'; // Use distinct error class
 
         if (error.name === 'AbortError') {
-            indicator.title = `${hostname} - Check Timed Out`;
-            logAnalyticsEvent('bot_status_timeout', { url: hostname, timeout: CONFIG.statusCheckTimeout });
+            // This handles the timeout specifically
+            indicator.title = `${hostname} - Check Timed Out (${CONFIG.statusCheckTimeout}ms)`;
+             logAnalyticsEvent('bot_status_timeout', { url: hostname, timeout: CONFIG.statusCheckTimeout });
         } else {
-             indicator.title = `${hostname} - Error: ${error.message}`;
-             logAnalyticsEvent('bot_status_error', { url: hostname, error: error.toString(), method: checkMethod });
+            indicator.title = `${hostname} - Check Error: ${error.message}`;
+            logAnalyticsEvent('bot_status_error', { url: hostname, error: error.toString(), method: checkMethod });
         }
     }
 }
@@ -490,13 +535,30 @@ function handleFatalError(message, error) {
     }
 }
 
+
 // --- Utility Functions ---
 function getHostname(url) {
     try {
-        if (!url) return 'unknown host';
+        if (!url || typeof url !== 'string') return 'invalid url';
+        // Handle potential protocol-relative URLs (e.g., //example.com)
+        if (url.startsWith('//')) {
+            url = 'http:' + url; // Assume http for URL parsing
+        }
+        // Ensure there's a protocol for the URL constructor
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+             // If no protocol, maybe it's just a hostname? Risky.
+             // Or maybe assume https? Let's try assuming https.
+             if (!url.includes('://')) { // Basic check if protocol seems missing
+                 url = 'https://' + url;
+             } else {
+                 // It has :// but not http/https? Invalid format.
+                 return 'invalid url format';
+             }
+        }
         return new URL(url).hostname;
     } catch (e) {
-        // Handle cases where URL might be invalid or relative
-        return url.split('/')[2] || url; // Basic fallback
+        console.warn(`Could not parse hostname from URL '${url}':`, e);
+        // Basic fallback for invalid URLs
+        return url.split('/')[0] || url; // Return the first part or the whole string
     }
 }
