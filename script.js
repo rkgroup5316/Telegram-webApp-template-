@@ -1,3 +1,5 @@
+import './ping.js';import './ping.js';
+
 // Define CONFIG first before it's used
 const CONFIG = {
     // Your configuration settings
@@ -204,48 +206,141 @@ function setupRefreshButton() {
 }
 
 /**
- * Check status for all bots
+ * Check status for all bots with improved error handling
  */
 async function checkAllBotStatuses() {
     const statusIndicators = document.querySelectorAll('[data-status-url]');
     
-    for (const indicator of statusIndicators) {
-        await checkBotStatus(indicator);
+    // Create an array of promises but don't await them yet
+    const statusPromises = Array.from(statusIndicators).map(indicator => {
+        return checkBotStatus(indicator).catch(error => {
+            console.warn('Status check failed but continuing with others:', error);
+            // Ensure we don't break the Promise.all below
+            return null;
+        });
+    });
+    
+    // Execute all status checks in parallel with a global timeout
+    try {
+        await Promise.race([
+            Promise.all(statusPromises),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Global status check timeout')), 45000)
+            )
+        ]);
+    } catch (error) {
+        console.error('Status checking had a global failure:', error);
+        logAnalyticsEvent('status_check_global_failure', { error: error.toString() });
     }
 }
 
 /**
- * Check status for a single bot using GET with 30 second timeout
+ * Check status for a single bot with improved reliability
  */
 async function checkBotStatus(indicator) {
     const statusUrl = indicator.getAttribute('data-status-url');
-    if (!statusUrl) return;
+    if (!statusUrl) {
+        indicator.className = 'status-indicator status-error';
+        return;
+    }
     
     // Reset to pending state
     indicator.className = 'status-indicator status-pending';
     
     try {
-        // Use AbortController to implement timeout
+        // First create the controller for the abort signal
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
         
-        const response = await fetch(statusUrl, {
-            method: 'GET', // Explicitly use GET method
-            mode: 'cors',
-            cache: 'no-cache',
-            headers: {
-                'Accept': 'application/json'
-            },
-            signal: controller.signal
-        });
+        // Use Ping.js library if available, otherwise fallback to fetch
+        let isOnline = false;
+        
+        if (window.ping) {
+            // Using ping.js if available (add this library)
+            try {
+                const result = await new Promise((resolve, reject) => {
+                    ping.ping({
+                        url: statusUrl,
+                        timeout: 5000,
+                        logFailed: false,
+                        onSuccess: function() {
+                            resolve(true);
+                        },
+                        onFail: function() {
+                            resolve(false);
+                        },
+                        onError: function(error) {
+                            reject(error);
+                        }
+                    });
+                });
+                isOnline = result;
+            } catch (pingError) {
+                console.warn('Ping.js failed, falling back to fetch:', pingError);
+                // Fall back to fetch below
+            }
+        }
+        
+        // If ping.js wasn't available or failed, use fetch as fallback
+        if (!window.ping || isOnline === false) {
+            try {
+                // Try with no-cors mode first to avoid CORS issues
+                const response = await fetch(statusUrl, {
+                    method: 'HEAD', // HEAD is lighter than GET
+                    mode: 'no-cors', // Try with no-cors to avoid CORS issues
+                    cache: 'no-cache',
+                    redirect: 'follow',
+                    signal: controller.signal
+                });
+                
+                // If we get here with no-cors, the request didn't throw an error,
+                // so we consider the endpoint reachable
+                isOnline = true;
+            } catch (fetchError) {
+                // Try one more time with a simple image request as ultimate fallback
+                try {
+                    const img = document.createElement('img');
+                    img.style.display = 'none';
+                    document.body.appendChild(img);
+                    
+                    await new Promise((resolve, reject) => {
+                        img.onload = () => {
+                            resolve(true);
+                            document.body.removeChild(img);
+                        };
+                        img.onerror = () => {
+                            resolve(false);
+                            document.body.removeChild(img);
+                        };
+                        img.src = `${statusUrl}/favicon.ico?t=${Date.now()}`;
+                        
+                        // Set another timeout for image loading
+                        setTimeout(() => {
+                            resolve(false);
+                            if (document.body.contains(img)) {
+                                document.body.removeChild(img);
+                            }
+                        }, 5000);
+                    });
+                    
+                    isOnline = true;
+                } catch (imgError) {
+                    console.error('All connectivity checks failed:', imgError);
+                    isOnline = false;
+                }
+            }
+        }
         
         // Clear timeout
         clearTimeout(timeoutId);
         
-        if (response.ok) {
+        // Update status indicator based on result
+        if (isOnline) {
             indicator.className = 'status-indicator status-online';
+            logAnalyticsEvent('bot_status_check', { url: new URL(statusUrl).hostname, status: 'online' });
         } else {
             indicator.className = 'status-indicator status-offline';
+            logAnalyticsEvent('bot_status_check', { url: new URL(statusUrl).hostname, status: 'offline' });
         }
     } catch (error) {
         console.error('Failed to check bot status:', error);
@@ -253,12 +348,17 @@ async function checkBotStatus(indicator) {
         // Check if it was a timeout
         if (error.name === 'AbortError') {
             console.log('Status check timed out after 30 seconds');
+            logAnalyticsEvent('bot_status_timeout', { url: new URL(statusUrl).hostname });
+        } else {
+            logAnalyticsEvent('bot_status_error', { 
+                url: new URL(statusUrl).hostname,
+                error: error.toString() 
+            });
         }
         
         indicator.className = 'status-indicator status-error';
     }
 }
-
 /**
  * Log analytics events
  */
