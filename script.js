@@ -20,6 +20,11 @@ document.addEventListener('DOMContentLoaded', function() {
         loadChannelsList();
         loadBotsList();
         setupRefreshButton();
+        
+        // Start automatic status checking immediately after initialization
+        checkAllBotStatuses();
+        // Set up automatic periodic checking
+        startPeriodicStatusChecking();
     } catch (error) {
         handleFatalError("Failed to initialize application", error);
     }
@@ -160,13 +165,24 @@ function loadBotsList() {
         if (CONFIG.bots.length === 0) {
             botList.innerHTML = '<li>No bots available</li>';
         }
-        
-        // Start checking bot statuses
-        checkAllBotStatuses();
     } catch (error) {
         botList.innerHTML = '<li>Error loading bots</li>';
         console.error('Failed to load bots:', error);
     }
+}
+
+/**
+ * Set up periodic status checking every minute
+ */
+function startPeriodicStatusChecking() {
+    // Check status every minute (60000 ms)
+    const checkInterval = setInterval(checkAllBotStatuses, 60000);
+    
+    // Store interval ID for potential cleanup
+    window.botStatusCheckInterval = checkInterval;
+    
+    // Log setup of periodic checking
+    logAnalyticsEvent('periodic_check_setup', { interval: '60000ms' });
 }
 
 /**
@@ -199,7 +215,7 @@ async function checkAllBotStatuses() {
 }
 
 /**
- * Check status for a single bot
+ * Check status for a single bot using GET with 30 second timeout
  */
 async function checkBotStatus(indicator) {
     const statusUrl = indicator.getAttribute('data-status-url');
@@ -209,18 +225,22 @@ async function checkBotStatus(indicator) {
     indicator.className = 'status-indicator status-pending';
     
     try {
-        // Add a small delay to make the UI feel more responsive
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Use AbortController to implement timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
         
         const response = await fetch(statusUrl, {
-            method: 'GET',
+            method: 'GET', // Explicitly use GET method
             mode: 'cors',
             cache: 'no-cache',
             headers: {
                 'Accept': 'application/json'
             },
-            timeout: 5000
+            signal: controller.signal
         });
+        
+        // Clear timeout
+        clearTimeout(timeoutId);
         
         if (response.ok) {
             indicator.className = 'status-indicator status-online';
@@ -229,6 +249,12 @@ async function checkBotStatus(indicator) {
         }
     } catch (error) {
         console.error('Failed to check bot status:', error);
+        
+        // Check if it was a timeout
+        if (error.name === 'AbortError') {
+            console.log('Status check timed out after 30 seconds');
+        }
+        
         indicator.className = 'status-indicator status-error';
     }
 }
