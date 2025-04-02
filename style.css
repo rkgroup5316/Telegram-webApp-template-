@@ -1,86 +1,171 @@
-/* Use Telegram theme variables for colors and styles */
+/* Basic Reset & Theme Variables */
 :root {
     --tg-theme-bg-color: var(--tg-theme-bg-color, #ffffff);
-    --tg-theme-text-color: var(--tg-theme-text-color, #000000);
-    --tg-theme-hint-color: var(--tg-theme-hint-color, #999999);
+    --tg-theme-text-color: var(--tg-theme-text-color, #212121);
+    --tg-theme-hint-color: var(--tg-theme-hint-color, #aaaaaa);
     --tg-theme-link-color: var(--tg-theme-link-color, #2481cc);
     --tg-theme-button-color: var(--tg-theme-button-color, #2481cc);
     --tg-theme-button-text-color: var(--tg-theme-button-text-color, #ffffff);
-    --tg-theme-secondary-bg-color: var(--tg-theme-secondary-bg-color, #f1f1f1);
+    --tg-theme-secondary-bg-color: var(--tg-theme-secondary-bg-color, #f5f5f5);
+
+    --status-online: #4CAF50; /* Green */
+    --status-offline: #F44336; /* Red */
+    --status-pending: var(--tg-theme-hint-color); /* Grey */
+    --status-error: #FF9800; /* Orange */
+
+    --card-bg-color: var(--tg-theme-secondary-bg-color);
+    --card-border-color: color-mix(in srgb, var(--tg-theme-hint-color) 20%, transparent);
+    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    margin: 0;
-    padding: 15px;
-    font-size: 16px;
-    color: var(--tg-theme-text-color);
     background-color: var(--tg-theme-bg-color);
-    transition: color 0.3s, background-color 0.3s; /* Smooth theme transition */
+    color: var(--tg-theme-text-color);
+    line-height: 1.6;
+    padding: 15px;
+    overscroll-behavior-y: none; /* Prevent pull-to-refresh issues */
+    -webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 .container {
-    max-width: 600px;
+    max-width: 700px;
     margin: 0 auto;
-    padding: 10px;
-    background-color: var(--tg-theme-secondary-bg-color);
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-h1, h2 {
-    color: var(--tg-theme-text-color);
-    border-bottom: 1px solid var(--tg-theme-hint-color);
-    padding-bottom: 5px;
-    margin-top: 1em;
+/* Header */
+.app-header {
+    text-align: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--card-border-color);
 }
 
-h1 {
-    margin-top: 0;
-}
-
-p {
-    line-height: 1.6;
+.app-header h1 {
+    font-size: 1.8em;
+    font-weight: 600;
     color: var(--tg-theme-text-color);
 }
 
-.warning {
-    font-size: 0.9em;
-    color: var(--tg-theme-hint-color);
-    background-color: rgba(255, 165, 0, 0.1); /* Light orange background */
-    padding: 5px;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 165, 0, 0.3);
-}
-
-button {
-    display: inline-block;
-    padding: 10px 15px;
-    margin: 10px 0;
+.app-header p {
     font-size: 1em;
-    font-weight: bold;
+    color: var(--tg-theme-hint-color);
+}
+
+/* Info Cards */
+.info-card {
+    background-color: var(--card-bg-color);
+    border-radius: 10px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--card-border-color);
+}
+
+.info-card h2 {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: var(--tg-theme-text-color);
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--card-border-color);
+}
+
+.info-card p {
+    font-size: 1em;
+    color: var(--tg-theme-text-color);
+}
+
+/* Link Lists (Channels & Bots) */
+.link-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.link-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--card-border-color);
+    min-height: 40px; /* Ensure consistent height */
+}
+
+.link-list li:last-child {
+    border-bottom: none;
+}
+
+.link-list a {
+    color: var(--tg-theme-link-color);
+    text-decoration: none;
+    font-weight: 500;
+    transition: opacity 0.2s ease;
+    flex-grow: 1; /* Allow link to take available space */
+    margin-right: 10px; /* Space between link and status */
+}
+
+.link-list a:hover {
+    opacity: 0.7;
+}
+
+/* Status Indicators */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-left: 8px; /* Space before status dot */
+    flex-shrink: 0; /* Prevent shrinking */
+    vertical-align: middle;
+    transition: background-color 0.3s ease;
+}
+
+.status-online { background-color: var(--status-online); }
+.status-offline { background-color: var(--status-offline); }
+.status-pending { background-color: var(--status-pending); }
+.status-error { background-color: var(--status-error); }
+
+/* Refresh Button */
+.refresh-button {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 8px 15px;
+    font-size: 0.9em;
+    font-weight: 500;
     color: var(--tg-theme-button-text-color);
     background-color: var(--tg-theme-button-color);
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, opacity 0.2s;
 }
 
-button:hover {
+.refresh-button:hover {
     opacity: 0.9;
 }
-
-#userInfo p, #themeInfo p {
-    word-wrap: break-word; /* Prevent long strings from overflowing */
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 0.9em;
-    background-color: var(--tg-theme-bg-color);
-    padding: 8px;
-    border-radius: 4px;
-    border: 1px solid var(--tg-theme-hint-color);
+.refresh-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
-a {
-    color: var(--tg-theme-link-color);
+
+/* Disclaimer Text */
+.disclaimer {
+    font-size: 0.85em;
+    color: var(--tg-theme-hint-color);
+    margin-top: 15px;
+}
+.disclaimer .status-indicator {
+    width: 8px;
+    height: 8px;
+    margin-left: 5px; /* Adjust spacing */
+    margin-right: 2px;
 }

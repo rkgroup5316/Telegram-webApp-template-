@@ -1,123 +1,154 @@
-// Make sure the Telegram Web App script is loaded and ready
 document.addEventListener('DOMContentLoaded', () => {
     const tg = window.Telegram.WebApp;
 
-    // Check if the WebApp object is available
-    if (!tg) {
-        console.error("Telegram WebApp script not loaded or failed to initialize.");
-        document.body.innerHTML = "Error: Could not initialize Telegram WebApp.";
-        return;
+    // --- Configuration ---
+    // *** REPLACE with your actual channel data ***
+    const channels = [
+        { name: "RKGROUP Channel 1", username: "YOUR_CHANNEL_USERNAME_1" },
+        { name: "RKGROUP News", username: "YOUR_CHANNEL_USERNAME_2" },
+        // Add more channels here
+    ];
+
+    // *** REPLACE with your actual bot data AND VALID PING URLS ***
+    const bots = [
+        { name: "My Awesome Bot", username: "YOUR_BOT_USERNAME_1", pingUrl: "https://your_bot_1_server.com/health", id: "bot1" },
+        { name: "Another Cool Bot", username: "YOUR_BOT_USERNAME_2", pingUrl: "https://your_bot_2_server.com/ping", id: "bot2" },
+        // Add more bots here - pingUrl MUST be HTTPS and have CORS enabled!
+        // If a bot doesn't have a web server/ping endpoint, you can omit pingUrl or set it to null.
+        { name: "Simple Bot (No Ping)", username: "YOUR_BOT_USERNAME_3", pingUrl: null, id: "bot3" },
+    ];
+
+    const PING_TIMEOUT = 5000; // Timeout for ping requests in milliseconds (e.g., 5 seconds)
+
+    // --- Telegram WebApp Initialization ---
+    try {
+        tg.ready();
+        tg.expand();
+        // Optional: Adjust header color based on theme
+        tg.setHeaderColor(tg.themeParams.secondary_bg_color || '#f5f5f5');
+        // Optional: Enable closing confirmation
+        tg.enableClosingConfirmation();
+    } catch (error) {
+        console.error("Telegram WebApp initialization failed:", error);
+        // Optionally display an error message to the user in the HTML
     }
 
-    // --- Initialization ---
-    // Call ready() to inform Telegram the app is ready to be displayed.
-    tg.ready();
+    // --- Element References ---
+    const channelListElement = document.getElementById('channel-list');
+    const botListElement = document.getElementById('bot-list');
+    const refreshButton = document.getElementById('refresh-button');
 
-    // Expand the Mini App to full height
-    tg.expand();
-
-    // --- Basic Info ---
-    const userDataElement = document.getElementById('userData');
-    if (tg.initDataUnsafe?.user) {
-        const user = tg.initDataUnsafe.user;
-        userDataElement.textContent = `
-            ID: ${user.id}
-            Name: ${user.first_name} ${user.last_name || ''}
-            Username: @${user.username || 'N/A'}
-            Language: ${user.language_code}
-            Premium: ${user.is_premium ? 'Yes' : 'No'}
-        `;
-    } else {
-        userDataElement.textContent = 'User data not available.';
-        console.warn("initDataUnsafe.user is not available.");
+    // --- Populate Lists ---
+    function populateChannels() {
+        if (!channels.length) {
+             channelListElement.innerHTML = '<li>No channels specified.</li>';
+             return;
+        }
+        channelListElement.innerHTML = channels.map(channel => `
+            <li><a href="https://t.me/${channel.username}" target="_blank">${channel.name}</a></li>
+        `).join('');
     }
 
-    // --- Theme Parameters ---
-    const themeButton = document.getElementById('themeButton');
-    const themeInfoDiv = document.getElementById('themeInfo');
-    const themeParamsElement = document.getElementById('themeParams');
-
-    function displayThemeParams() {
-        // Display current theme parameters
-        themeParamsElement.textContent = JSON.stringify(tg.themeParams, null, 2);
-        // Also apply theme variables immediately (although CSS does this, it ensures consistency)
-        document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
-        document.body.style.color = tg.themeParams.text_color || '#000000';
+    function populateBots() {
+         if (!bots.length) {
+             botListElement.innerHTML = '<li>No bots specified.</li>';
+             return;
+        }
+        botListElement.innerHTML = bots.map(bot => `
+            <li id="li-${bot.id}">
+                <a href="https://t.me/${bot.username}" target="_blank">${bot.name}</a>
+                ${bot.pingUrl ? `<span class="status-indicator status-pending" id="status-${bot.id}" title="Checking..."></span>` : '<span title="Status check N/A">-</span>'}
+            </li>
+        `).join('');
     }
 
-    // Initial display
-    displayThemeParams();
+    // --- Bot Status Pinging ---
+    async function pingBot(bot) {
+        const statusElement = document.getElementById(`status-${bot.id}`);
+        if (!statusElement) return; // Skip if bot has no pingUrl or element not found
 
-    // Toggle display on button click
-    themeButton.addEventListener('click', () => {
-        const isVisible = themeInfoDiv.style.display === 'block';
-        themeInfoDiv.style.display = isVisible ? 'none' : 'block';
-        themeButton.textContent = isVisible ? 'Show Theme Info' : 'Hide Theme Info';
-    });
+        statusElement.className = 'status-indicator status-pending';
+        statusElement.title = 'Checking...';
 
-    // Listen for theme changes
-    tg.onEvent('themeChanged', displayThemeParams);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+            console.warn(`Ping timeout for ${bot.name}`);
+        }, PING_TIMEOUT);
 
+        try {
+            const response = await fetch(bot.pingUrl, {
+                method: 'HEAD', // Use HEAD for efficiency
+                mode: 'cors',    // CRITICAL: Server must allow this origin
+                signal: controller.signal,
+                cache: 'no-store' // Try to prevent caching of the status check
+            });
 
-    // --- Main Button ---
-    // Configure the main button
-    tg.MainButton.setText('Send Data & Close');
-    tg.MainButton.setTextColor(tg.themeParams.button_text_color || '#ffffff');
-    tg.MainButton.color = tg.themeParams.button_color || '#2481cc';
-    tg.MainButton.show(); // Make the button visible
+            clearTimeout(timeoutId);
 
-    // Handle Main Button clicks
-    tg.MainButton.onClick(() => {
-        // Data to send back to the bot
-        const dataToSend = {
-            message: 'Hello from Mini App!',
-            userId: tg.initDataUnsafe?.user?.id || 'unknown',
-            timestamp: new Date().toISOString()
-        };
+            if (response.ok) { // Status 200-299 indicates online
+                statusElement.className = 'status-indicator status-online';
+                statusElement.title = `Online (Status: ${response.status}, ${new Date().toLocaleTimeString()})`;
+            } else {
+                statusElement.className = 'status-indicator status-offline';
+                statusElement.title = `Offline or Error (Status: ${response.status}, ${new Date().toLocaleTimeString()})`;
+            }
+        } catch (error) {
+            clearTimeout(timeoutId);
+            console.error(`Error pinging ${bot.name} at ${bot.pingUrl}:`, error);
+            statusElement.className = 'status-indicator status-error'; // Use distinct error state maybe
+             if (error.name === 'AbortError') {
+                statusElement.title = `Error: Request Timed Out (${new Date().toLocaleTimeString()})`;
+             } else if (error instanceof TypeError) {
+                 // Likely a CORS issue or network problem
+                 statusElement.title = `Error: Network or CORS issue. Check console. (${new Date().toLocaleTimeString()})`;
+             }
+             else {
+                 statusElement.title = `Error: Ping failed. Check console. (${new Date().toLocaleTimeString()})`;
+             }
+        }
+    }
 
-        // Send data to the bot. The bot needs to be set up to receive this.
-        // IMPORTANT: For production, you MUST validate tg.initData on your backend.
-        // The initData string itself should be sent for validation.
-        // Here, we just send a simple JSON payload for demonstration.
-        tg.sendData(JSON.stringify(dataToSend));
+    // --- Check All Bot Statuses ---
+    async function checkAllBots() {
+        refreshButton.disabled = true;
+        refreshButton.textContent = 'Checking...';
+        tg.MainButton.showProgress(); // Show progress on Telegram's main button
 
-        // Optionally, provide feedback to the user
-        tg.showAlert('Data sent! Closing Mini App.');
+        const pingPromises = bots.filter(bot => bot.pingUrl).map(bot => pingBot(bot));
 
-        // Close the Mini App
-        // tg.close(); // Uncomment this line if you want the app to close after sending data
-    });
+        try {
+            await Promise.all(pingPromises);
+            console.log("Finished checking all bots.");
+        } catch (error) {
+            console.error("Error during batch bot check:", error);
+        } finally {
+            refreshButton.disabled = false;
+            refreshButton.textContent = 'Refresh Status';
+            tg.MainButton.hideProgress(); // Hide progress
+        }
+    }
 
-    // --- Back Button ---
-    // Enable the back button in the header
+    // --- Event Listeners ---
+    refreshButton.addEventListener('click', checkAllBots);
+
+    // Optional: Handle Telegram's Main Button
+    tg.MainButton.setText('Refresh Status');
+    tg.MainButton.onClick(checkAllBots);
+    tg.MainButton.show();
+
+    // Optional: Handle Back Button
+    tg.BackButton.onClick(() => tg.close());
     tg.BackButton.show();
 
-    // Handle Back Button clicks
-    tg.BackButton.onClick(() => {
-        // You can add custom logic here, like navigating back within your app
-        // For this basic template, we'll just close the Mini App
-        tg.showAlert('Back button clicked! Closing.');
-        tg.close();
-    });
 
-    // --- Other Events (Example) ---
-    tg.onEvent('viewportChanged', (event) => {
-        console.log('Viewport changed:', event);
-        // You could adjust layout based on event.isStateStable
-        if (!event.isStateStable) {
-             console.log('Viewport is potentially changing size.');
-        } else {
-             console.log('Viewport size is stable.');
-        }
-    });
+    // --- Initial Load ---
+    populateChannels();
+    populateBots();
+    checkAllBots(); // Initial check when the app loads
 
-    // --- Closing Behavior ---
-    // Optional: Ask for confirmation before closing
-    tg.enableClosingConfirmation();
-
-    console.log('Telegram Mini App script initialized.');
-    console.log('WebApp Info:', tg); // Log the WebApp object for debugging
-    console.log('InitData (Unsafe):', tg.initDataUnsafe);
-    console.log('Theme Params:', tg.themeParams);
+    console.log("Rkgroup Mini App Initialized");
+    // Log theme params for debugging if needed
+    // console.log("Theme Params:", tg.themeParams);
 
 }); // End DOMContentLoaded

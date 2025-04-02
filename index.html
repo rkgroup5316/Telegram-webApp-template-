@@ -2,29 +2,47 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Mini App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Rkgroup Info</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Welcome to My Mini App!</h1>
-        <p>This is a basic Telegram Mini App template.</p>
+        <header class="app-header">
+            <h1>Rkgroup Hub</h1>
+            <p>Information and Status</p>
+        </header>
 
-        <div id="userInfo">
-            <h2>User Info (Unsafe)</h2>
-            <p id="userData">Loading...</p>
-            <p class="warning">Note: This data is 'unsafe' and should be validated on your backend if used for critical operations.</p>
-        </div>
+        <section id="about" class="info-card">
+            <h2>About Rkgroup</h2>
+            <p>
+                Welcome! Rkgroup focuses on creating helpful Telegram bots and communities.
+                Explore our channels and check the status of our bots below.
+            </p>
+        </section>
 
-        <button id="themeButton">Toggle Theme Info</button>
-        <div id="themeInfo" style="display: none;">
-            <h2>Theme Parameters</h2>
-            <p id="themeParams">Loading...</p>
-        </div>
+        <section id="channels" class="info-card">
+            <h2>Our Channels</h2>
+            <ul class="link-list" id="channel-list">
+                <li>Loading channels...</li>
+            </ul>
+        </section>
 
-        <p>Click the Main Button below to send data back or close.</p>
+        <section id="bots" class="info-card">
+            <h2>Our Bots</h2>
+            <ul class="link-list" id="bot-list">
+                <li>Loading bots...</li>
+            </ul>
+            <button id="refresh-button" class="refresh-button">Refresh Status</button>
+            <p class="disclaimer">
+                Bot status is checked via HTTPS ping. Requires the bot server to allow requests (CORS).
+                <span class="status-indicator status-online"></span> Online
+                <span class="status-indicator status-offline"></span> Offline/Error
+                <span class="status-indicator status-pending"></span> Checking
+            </p>
+        </section>
+
     </div>
 
     <script src="script.js"></script>
